@@ -1,0 +1,47 @@
+#!/bin/bash
+
+
+fold="address_processing"
+mkdir -p $fold
+
+evad=evil_addresses
+evtxt=$evad".txt"
+evtab=$fold/$evad".table"
+banlist=$fold/$evad".ban"
+
+
+echo "1: Getting journal"
+journalctl -u sshd --since=yesterday | grep "Failed" | pv > $evtxt
+
+echo ""
+echo "2: Parsing for unique addresses"
+./evilAddressParser $evtxt | pv > $evtab
+mv $evtxt $fold/
+
+echo ""
+echo -n "3: Sorting table..."
+cat $evtab | sort -n -r -k 2 -n -r -k 3 | egrep -v "(#|Address|=|\s0$)" > $evtab".sorted"
+awk '{print $1}' < $evtab."sorted" > $banlist
+echo "X"
+
+
+echo ""
+echo "4: Checking already banned ips"
+iptables -nvL | awk '{print $8}' | egrep "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sort > $fold/old.names
+cat $banlist | egrep "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" | sort > $fold/new.names
+diff -b $fold/old.names $fold/new.names | egrep "^>" | sed 's/> //g' > $fold/to_update.txt
+diff -b $fold/old.names $fold/new.names | egrep "^>" | sed 's/> //g' 
+
+echo ""
+echo "5: Banning new ips:"
+while read address; do
+	echo "new: "$address
+	iptables -A INPUT -s $address -j DROP
+done < $fold/to_update.txt
+echo ""
+echo "FINIT"
+
+rm -rf $fold
+
+
+systemctl reload iptables
