@@ -1,11 +1,11 @@
 #include <stdlib.h>
-#include <string>
 #include <iostream>
 #include <fstream>
 #include <map>
 #include <vector>
 
-#define VERSION "v0.1"
+#define VERSION "v0.2"
+#define SHOW "--details"
 //#define DEBUG
 
 using namespace std;
@@ -19,45 +19,51 @@ datamap DMAP;
 bool verbose = false;
 
 void usage(){
-    cerr << "[sudo] evilAddressParser [OPTIONS]" << VERSION << endl;
+    cerr << "evilAddressParser <journal_ctl_file> [" << SHOW << "]  " << VERSION << endl;
 	cerr << endl;
-    cerr << "Looks for failed password attempts in a journalctl report (or a generated one)" << endl;
-	cerr << "Output is a sorted list of: unique_ip[TAB]ports_attempted[TAB]users_attempted" << endl;
+    cerr << "Looks for failed password attempts in a journalctl report and outputs a table of unique ip address, sorted by #ports and #users that were tried (and failed)" << endl;
+	cerr << endl;
     exit(-1);
 }
 
 int main (int argc, char ** argv)
 {
-	//time_t timev;
-	//time(&timev)
-	//system("mv evil_addresses.txt evil_addresses.
-//    system("journalctl -u sshd --since=yesterday > evil_addresses.txt");
-    ifstream infile("evil_addresses.txt");
+	switch(argc){
+		case 0:
+		case 1: usage();
+		case 2: break; //fine filename
+		case 3: if (string(argv[2])!=SHOW) usage(); verbose=true; break;
+		default: usage();
+	}
+
+    ifstream infile(argv[1]);
 
 	string line;
     while (getline(infile, line))
     {
         //Skip to user part
-        int start_user = line.find("Failed password for")+20;
-        if (start_user!=-1) line = line.substr(start_user, line.npos);
+        int start_user = line.find("Failed password for");
+        if (start_user!=line.npos) line = line.substr(start_user+20, line.npos);
         else continue;
+
 
         //skip the 'invalid user' part if neccesary
         int invalid_user = line.find("invalid user");
-        if (invalid_user!=string::npos) line = line.substr(invalid_user+13, line.npos);
+        if (invalid_user!=line.npos) line = line.substr(invalid_user+13, line.npos);
 
         // Grab user string
         string user;
         int end_user = line.find(" from");
-        if (end_user!=string::npos) {
+        if (end_user!=line.npos) {
             user = line.substr(0,end_user);
             line = line.substr(end_user+6, line.npos);
         }
+
        if (user.empty()) continue;
 
         string address;
         int start_port = line.find(" port");
-        if (start_port!=string::npos) {
+        if (start_port!=line.npos) {
             address = line.substr(0,start_port);
             line = line.substr(start_port+6, line.npos);
         }
@@ -66,7 +72,7 @@ int main (int argc, char ** argv)
 
         string port;
         int end_port = line.find(" ssh2");
-        if (end_port!=string::npos) port = line.substr(0,end_port);
+        if (end_port!=line.npos) port = line.substr(0,end_port);
 
 #ifdef DEBUG
         cout << user.c_str() << "@" << address.c_str() << ":" << port.c_str() << '#' << endl;
@@ -84,33 +90,31 @@ int main (int argc, char ** argv)
             DMAP[address] = v;
         }
 
-        // Found address
-        else{
-            list_pair &v = DMAP[address];
+        // Insert current details for address
+		list_pair &v = DMAP[address];
 
-            // !! Find unique ports
-            list_of::iterator ii;
-            for (ii = v[0].begin(); ii!= v[0].end(); ++ii){
-                string &retrieved_port = *ii;
+		// !! Find unique ports
+		list_of::iterator ii;
+        for (ii = v[0].begin(); ii!= v[0].end(); ++ii){
+            string &retrieved_port = *ii;
 
-                if (port == retrieved_port) break;
-            }
-            //Didn't find it, insert
-            if (ii==v[0].end()) v[0].push_back(port);
-
-
-
-
-            // !! Find unique users
-            list_of::iterator jj;
-            for (jj = v[1].begin(); jj!= v[1].end(); ++jj){
-                string &retrieved_user = *jj;
-
-                if (user == retrieved_user) break;
-            }
-            //Didn't find it, insert
-            if (jj==v[1].end()) v[1].push_back(user);
+            if (port == retrieved_port) break;
         }
+        //Didn't find it, insert
+        if (ii==v[0].end()) v[0].push_back(port);
+
+
+
+
+        // !! Find unique users
+        list_of::iterator jj;
+        for (jj = v[1].begin(); jj!= v[1].end(); ++jj){
+            string &retrieved_user = *jj;
+
+            if (user == retrieved_user) break;
+        }
+        //Didn't find it, insert
+        if (jj==v[1].end()) v[1].push_back(user);
     }
     infile.close();
 
