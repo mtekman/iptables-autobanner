@@ -119,6 +119,12 @@ int main (int argc, char ** argv)
     infile.close();
 
 
+    if (DMAP.size()==0){
+	cerr << "No data." << endl;
+        exit(-1);
+    } 
+
+
     // Print header
     if (verbose) cout << "Address\tPorts\tUsers" << endl;
     else cout << "Address\t#Ports\t#Users" << endl;
