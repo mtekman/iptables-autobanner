@@ -1,5 +1,16 @@
 #!/bin/bash
 
+if [ "$1" = "" ]; then
+	echo "$(basename $0) (--yesterday|--all)
+
+Bans repeated ip attempts updating from yesterday or from all known records"
+	exit -1
+fi
+
+[ "$1" = "--yesterday" ] arg="--since=yesterday"
+[ "$1" = "--all" ] arg=""
+
+
 echo ""
 echo "========================================================="
 echo "=============$(date)================"
@@ -14,7 +25,7 @@ banlist=$fold/$evad".ban"
 
 
 echo -n "1: Getting journal"
-journalctl -u sshd --since=yesterday | grep "Failed" > $evtxt
+journalctl -u sshd $arg | grep "Failed" | pv > $evtxt
 echo -e "\tX"
 
 echo -n "2: Parsing for unique addresses"
