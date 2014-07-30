@@ -38,7 +38,7 @@ int main (int argc, char ** argv)
 
     ifstream infile(argv[1]);
 
-	string line;
+    string line;
     while (getline(infile, line))
     {
         //Skip to user part
