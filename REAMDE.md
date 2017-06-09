@@ -1,9 +1,8 @@
-# Main:
 
-### ban_addresses.sh 
+#### ban_addresses.sh 
 Generates and parses journalctl logs to ban addresses who repeatedly failes to ssh into:
 
-### evilAddressParser
+#### evilAddressParser
 
 A cpp script that prints a sorted frequency table on ports and users attempted for a given address
 
